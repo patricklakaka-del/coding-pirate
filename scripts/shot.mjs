@@ -137,32 +137,55 @@ async function checkPage(browser, port, scenario) {
     }
     await evaluate("document.fonts.ready.then(() => true)");
     const page = await evaluate(`(() => {
-      const heading = document.querySelector("main > h1");
+      const heading = document.querySelector("#page-title");
       const bounds = heading?.getBoundingClientRect();
+      const openButton = document.querySelector("#open-case");
       return {
         title: document.title,
         language: document.documentElement.lang,
-        heading: heading?.textContent,
+        heading: heading?.innerText.replace(/\\s+/g, " ").trim(),
         headings: document.querySelectorAll("h1").length,
-        introduction: document.querySelector("main > p")?.textContent,
+        introduction: document.querySelector(".hero-description")?.textContent,
         viewport: document.querySelector('meta[name="viewport"]')?.content,
+        rarityRows: document.querySelectorAll("#odds .odds-row").length,
+        poolItems: document.querySelectorAll("#loot-pool .drop-card").length,
+        weaponArt: document.querySelectorAll("#loot-pool img.skin-photo").length,
+        loadedWeaponArt: [...document.querySelectorAll("#loot-pool img.skin-photo")]
+          .filter(image => image.complete && image.naturalWidth > 0).length,
+        caseArt: document.querySelector(".case-photo")?.complete &&
+          document.querySelector(".case-photo")?.naturalWidth > 0,
+        openingControl: openButton?.textContent.includes("Open the case") &&
+          !openButton.disabled &&
+          document.querySelector('#drop-result[role="status"][aria-live="polite"]') !== null,
         assets: [...document.querySelectorAll('script[type="module"][src], link[rel="stylesheet"]')]
           .map(element => element.src || element.href),
-        styled: heading ? parseFloat(getComputedStyle(heading).fontSize) >= 32 &&
-          getComputedStyle(document.body).display === "grid" &&
-          getComputedStyle(document.documentElement).backgroundColor === "rgb(248, 250, 252)" : false,
+        styled: heading && openButton ? parseFloat(getComputedStyle(heading).fontSize) >= 32 &&
+          getComputedStyle(document.documentElement).backgroundColor === "rgb(16, 16, 21)" &&
+          getComputedStyle(openButton).backgroundColor !== "rgba(0, 0, 0, 0)" : false,
         fits: bounds ? bounds.left >= 0 && bounds.right <= innerWidth &&
           bounds.top >= 0 && bounds.bottom <= innerHeight &&
           document.documentElement.scrollWidth <= innerWidth : false
       };
     })()`);
-    assert.equal(page.title, "Hello, world!");
+    assert.equal(page.title, "Recoil Case Simulator — Case Lab");
     assert.equal(page.language, "en");
-    assert.equal(page.heading, "Hello, world!");
+    assert.equal(page.heading, "The Recoil Case. Just one more.");
     assert.equal(page.headings, 1);
-    assert.equal(page.introduction, "Your next static web app starts here.");
+    assert.equal(
+      page.introduction,
+      "Explore the Recoil Case drop pool and odds in a free, no-stakes simulator. No keys, no purchases, just the spin.",
+    );
     assert.equal(page.viewport, "width=device-width, initial-scale=1.0");
-    assert.ok(page.styled, "The built stylesheet must affect the heading.");
+    assert.equal(page.rarityRows, 5, "Discover all rarity odds rows.");
+    assert.equal(page.poolItems, 20, "Render the selected Recoil Case item pool.");
+    assert.equal(page.weaponArt, 20, "Every loot pool item must have custom artwork.");
+    assert.equal(page.loadedWeaponArt, 20, "All item photos must load successfully.");
+    assert.ok(page.caseArt, "The supplied case photo must load successfully.");
+    assert.ok(page.openingControl, "The enabled case button and live result status must render.");
+    assert.ok(
+      page.styled,
+      "The built stylesheet must affect the page heading and opening control.",
+    );
     assert.ok(page.fits, "The heading must fit the viewport without horizontal overflow.");
     assert.ok(page.assets.length >= 2, "Discover both built JavaScript and stylesheet assets.");
     for (const asset of page.assets) {
